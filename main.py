@@ -1,11 +1,12 @@
 import cv2
 import numpy as np
 
-video_path = 'lullaby.mp4'
+video_path = r'D:\auto_fancam\download_video\[K-Choreo 8K] 갓세븐 직캠 Breath (넌 날 숨 쉬게 해) (GOT7 Choreography) l @MusicBank 201204.mp4'
 cap = cv2.VideoCapture(video_path)  # 비디오 읽어오기
 
 # 영상 저장 사이즈
 output_size = (375, 667)  # (width, height)
+fit_to = 'height'
 
 # initialize writing video 영상 저장 함수
 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')  # mp4v라는 코텍으로 저장
@@ -17,8 +18,20 @@ out = cv2.VideoWriter('%s_output.mp4' % (video_path.split(
 if not cap.isOpened():
     exit()
 
-tracker = cv2.TrackerCSRT_create()
-# csrt tracker initialize
+# cv2.__version__ : 4.5.3
+# tracker initialize
+OPENCV_OBJECT_TRACKERS = {
+    "csrt": cv2.TrackerCSRT_create,
+    "kcf": cv2.TrackerKCF_create,
+    "mil": cv2.TrackerMIL_create,
+    "goturn": cv2.TrackerGOTURN_create,
+    "rpn": cv2.TrackerDaSiamRPN_create
+}
+
+tracker = OPENCV_OBJECT_TRACKERS['mil']()
+
+top_bottom_list, left_right_list = [], []
+count = 0
 
 # Region of Interest
 ret, img = cap.read()  # 첫 프레임을 불러온다.
@@ -41,15 +54,20 @@ cv2.destroyWindow('Select Window')
 tracker.init(img, rect)
 
 while True:  # 동영상 재생
+    count += 1
     ret, img = cap.read()  # 1프레임씩 읽어옴
     # 잘못 읽거나 비디오가 끝나면 ret이 False가 됨
 
     if not ret:
+        print("In 'While', ret is False -> exit")
         exit()
 
     success, box = tracker.update(img)
     # tracker.update(img) img에서 rect로 설정한 이미지와 비슷한 물체의 위치를 찾아 반환한다.
     # success는 성공 여부 boolean
+    if not success:
+        print("찾지 못했습니다.")
+        exit()
 
     left, top, width, height = [int(v) for v in box]
 
@@ -64,15 +82,16 @@ while True:  # 동영상 재생
     
     '''
     result_top = int(center_y - output_size[1] / 2)
-    result_bottom = int(center_y - output_size[1] / 2)
+    result_bottom = int(center_y + output_size[1] / 2)
     result_left = int(center_y - output_size[0] / 2)
-    result_right = int(center_y - output_size[0] / 2)
+    result_right = int(center_y + output_size[0] / 2)
+    print(result_top, result_bottom, result_left, result_right)
 
     result_img = img[result_top:result_bottom, result_left:result_right].copy()
     # numpy.copy()로 numpy array를 복사, 밑에 확인용 tracking 사각형이 같이 저장되지는 않음.
-
+    print(result_img)
     # 제대로 잘렸는지 확인
-    #cv2.imshow('result_img', result_img)
+    cv2.imshow('result_img', result_img)
     # 'result_img'라는 윈도우에 result_img 띄우기
 
     # 비디오 저장!
@@ -82,6 +101,7 @@ while True:  # 동영상 재생
     cv2.rectangle(img, pt1=(left, top), pt2=(
         left + width, top + height), color=(255, 255, 255), thickness=3)
     #pt1 = (왼쪽, 위), pt2 = (오른쪽, 아래)
+    # cv2.imshow('result_img', result_img)  # 윈도우에 이미지 출력
     cv2.imshow()  # 윈도우에 이미지 출력
     if cv2.waitKey(1) == ord('q'):
         # ord('q')에 해당하는 아스키 코드 int 반환
